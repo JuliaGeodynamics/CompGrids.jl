@@ -9,6 +9,7 @@ struct petsc_data
     petsclib
     da
 end
+petsc_data() = petsc_data(nothing,nothing)
 
 """
     start_backend(backend{BackendPETSc}; Scalar=Float64, dim=1)

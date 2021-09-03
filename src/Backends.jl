@@ -53,9 +53,9 @@ abstract type BackendNone <: AbstractTypeBackend end
 
 Structure that defines the backend used for the computional grid  
 
-    `type`: `ParallelStencil`, `PETSc` (requires loading the corresponding packages), or `nothing` (julia native grid)
-    `arch`: `:CPU`,`:GPU`,`:CUDA` (requires `CUDA` to be loaded first)
-    `mpi`: Boolean that indicates if we employ MPI 
+- `type`: `:ParallelStencil`, `:PETSc` (requires loading the corresponding packages), or `:Julia` (julia native grid)
+- `arch`: `:CPU`,`:GPU`,`:CUDA` (requires `CUDA` to be loaded first)
+- `mpi`: Boolean that indicates if we employ MPI 
 
 
 """
@@ -70,7 +70,9 @@ end
 
 Specify the backend we are using as well as whether the simulation is done on an MPI parallel machine or not
 
-- `arch`:  Possibilities are `:CPU`,`:GPU`,`:CUDA`   
+- `type`: `:ParallelStencil`, `:PETSc` (requires loading the corresponding packages), or `:Julia` (julia native)
+- `arch`: `:CPU`,`:GPU`,`:CUDA` 
+- `mpi`: Boolean that indicates if we employ MPI 
 
 """
 function backend(; arch::Symbol=:CPU, type::Symbol=:PETSc, mpi::Bool=true) 

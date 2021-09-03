@@ -6,33 +6,36 @@ and cell faces, elements of type `FT`, topology `{TX, TY, TZ}`, and coordinate r
 of type `R`.
 """
 # NOTE: we can later add info here about the local & global extent of the grid, the halo, the neigboring processors and the type of calculation (CPU/MPI-CPU/GPU)
-mutable struct RegularRectilinearCollocatedGrid{FT, DIM, B} <: AbstractRectilinearCollocatedGrid{FT, DIM, B}
+mutable struct RegularRectilinearCollocatedGrid{FT, D, B} <: AbstractRectilinearCollocatedGrid{FT, D, B}
     # number of dimensions
     dim :: Int
 
-    # Number of grid points in (x,y,z).
-    N  :: Tuple
+    # Number of global grid points in (x,y,z).
+    Ng :: NTuple{D,Int}
     
+    # Number of locak grid points in (x,y,z).
+    N  :: NTuple{D,Int}
+
     # Topology
-    topology :: Tuple
+    topology :: NTuple{D,DataType}
     
     # Domain size
-    L  :: Tuple
+    L  :: NTuple{D,FT}
     
     # Grid spacing 
-    Δ  :: Tuple
+    Δ  :: NTuple{D,FT}
     
     # Range of (global) coordinates at the centers of the cells.
-    Center  :: Tuple
+    Center  :: NTuple{D,StepRangeLen}
     
     # Range of (global) coordinates at the faces of the cells.
-    Face  :: Tuple
+    Face  :: NTuple{D,StepRangeLen}
 
     # Backend employed
     backend :: B
     
     # store PS or PETSc specific info
-    petsc 
+    petsc   :: petsc_data 
 
     # Parallel layout
 
@@ -177,7 +180,7 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
 
     # Initialise backend and create grid structure
     grid = RegularRectilinearCollocatedGrid{FT, dim, typeof(backend)}(
-          dim, N, topology[1:dim], L, Δ, Center, Face, backend, nothing)
+          dim, N, N, topology[1:dim], L, Δ, Center, Face, backend, petsc_data())
 
     # Construct grid      
     initialize_grid!(grid, 
@@ -245,13 +248,13 @@ end
 function show(io::IO, g::RegularRectilinearCollocatedGrid{FT, DIM, B}) where {FT, DIM, B}
     
     if g.backend.mpi
-        mpi_type = "| MPI"
+        mpi_type = "| MPI "
     else
         mpi_type = ""
     end
 
     print(io, "RegularRectilinearCollocatedGrid{$FT, $DIM, $B}\n",
-              "        Backend: $(g.backend.type) ($(g.backend.arch) $mpi_type) \n",
+              "        Backend: $(g.backend.type) ( $(g.backend.arch) $mpi_type) \n",
               "       gridtype: Collocated \n",
               "         domain: $(domain_string(g))\n",
               "       topology: ", g.topology, '\n',
@@ -266,10 +269,10 @@ end
 """
     initialize_grid(grid::RegularRectilinearCollocatedGrid{FT, 2, backend{BackendPETSc}})
 
-Initializes a `DMDA` object using the PETSc backend.
+Initializes a `DMDA` object using the `PETSc` backend.
 """
-function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, DIM, backend{BackendPETSc}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, DIM}
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{BackendPETSc}};
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
     petsclib, comm = initialize_backend(grid.backend, Scalar=FT);
@@ -278,11 +281,10 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, DIM, backen
     @eval using PETSc
     
     # Transform local boundaries to PETSc boundary conditions 
-    bcs_vec = Vector{PETSc.LibPETSc.DMBoundaryType}(undef,DIM)
-    for idim=1:DIM
-        bcs_vec[idim] = bcs_translate(grid.topology[idim]);
+    bcs = Vector{PETSc.LibPETSc.DMBoundaryType}(undef, D)
+    for idim=1:D
+        bcs[idim] = bcs_translate(grid.topology[idim]);
     end
-    bcs = (bcs_vec...,)
 
     # Stencil type
     if stenciltype==:Star
@@ -295,7 +297,7 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, DIM, backen
     da = PETSc.DMDA(
         petsclib,
         comm,
-        bcs,                     # boundary conditions
+        (bcs...,),               # boundary conditions
         grid.N,                  # Global grid size
         dof,                     # Number of DOF per node
         stencilwidth,            # Stencil width
@@ -304,16 +306,52 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, DIM, backen
     )
 
     # Set coordinates
-    c_start = -1*ones(DIM)
-    c_end = ones(DIM)
-    for idim=1:DIM
+    c_start = -1*ones(D)
+    c_end = ones(D)
+    for idim=1:D
         c_start[idim] = grid.Face[idim][1];
         c_end[idim] = grid.Face[idim][end];
     end
     PETSc.setuniformcoordinates!(da, (c_start...,), (c_end...,))
 
+    # Determine number of local grid points
+    # TBD
+
     # Store info in a PETSc data object
     grid.petsc = petsc_data(petsclib, da)
 
     return nothing
+end
+
+
+"""
+    initialize_grid(grid::RegularRectilinearCollocatedGrid{FT, 2, backend{BackendParallelStencil}})
+
+Initializes a grid when we use `ParallelStencil` as a Backend
+"""
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{BackendParallelStencil}};
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
+
+    # initialize backend
+    initialize_backend(grid.backend);
+    
+    # retrieve global grid & local grid dimensions
+    if grid.backend.mpi 
+        N_vec = ones(Int,3);
+        N_vec[1:D] = collect(grid.Ng)
+
+        mpi=false
+        if isdefined(Main, :MPI)
+            mpi=true
+        end
+
+
+        me, dims, nprocs, coords, comm_cart = init_global_grid(N_vec[1], N_vec[2], N_vec[3], init_MPI=mpi, quiet=false);
+        @show (dims[1:D]...,)
+    # TBD
+
+    end
+
+
+
 end
