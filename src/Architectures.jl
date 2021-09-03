@@ -1,0 +1,78 @@
+module Architectures
+
+export AbstractArchitecture, AbstractCPUArchitecture, AbstractGPUArchitecture
+export CPU, GPU
+
+
+# We have the following options:
+#   ParallelStencil, using CUDA (later AMD) or THREADS, on MPI or not
+#   PETSc, using MPI or not
+#
+
+"""
+NoMPI
+In case you want to run this on a single processor and not invoke MPI
+"""
+abstract type NoMPI end
+
+
+"""
+    AbstractArchitecture
+Abstract supertype for architectures
+"""
+abstract type AbstractArchitecture end
+
+"""
+    AbstractCPUArchitecture
+Abstract supertype for CPU architectures supported by CompGrids.
+"""
+abstract type AbstractCPUArchitecture <: AbstractArchitecture end
+
+"""
+    AbstractGPUArchitecture
+Abstract supertype for GPU architectures supported by CompGrids.
+"""
+abstract type AbstractGPUArchitecture <: AbstractArchitecture end
+
+"""
+    CPU <: AbstractArchitecture
+Define/run on one CPU node. 
+"""
+struct CPU <: AbstractCPUArchitecture end
+
+"""
+    GPU <: AbstractArchitecture
+Run Oceananigans on a single NVIDIA CUDA GPU.
+"""
+struct GPU <: AbstractGPUArchitecture end
+
+
+
+#device(::AbstractCPUArchitecture) = KernelAbstractions.CPU()
+#device(::AbstractGPUArchitecture) = CUDAKernels.CUDADevice()
+
+#architecture() = nothing
+#architecture(::Number) = nothing
+#architecture(::Array) = CPU()
+#architecture(::CuArray) = GPU()
+
+#array_type(::CPU) = Array
+#array_type(::GPU) = CuArray
+
+#arch_array(::AbstractCPUArchitecture, A::Array) = A
+#arch_array(::AbstractCPUArchitecture, A::CuArray) = Array(A)
+##arch_array(::AbstractGPUArchitecture, A::Array) = CuArray(A)
+#arch_array(::AbstractGPUArchitecture, A::CuArray) = A
+
+#const OffsetCPUArray = OffsetArray{FT, N, <:Array} where {FT, N}
+#const OffsetGPUArray = OffsetArray{FT, N, <:CuArray} where {FT, N}
+
+#Adapt.adapt_structure(::CPU, a::OffsetCPUArray) = a
+#Adapt.adapt_structure(::GPU, a::OffsetGPUArray) = a
+
+#Adapt.adapt_structure(::GPU, a::OffsetCPUArray) = OffsetArray(CuArray(a.parent), a.offsets...)
+#Adapt.adapt_structure(::CPU, a::OffsetGPUArray) = OffsetArray(Array(a.parent), a.offsets...)
+
+device_event(arch) = Event(device(arch))
+
+end
