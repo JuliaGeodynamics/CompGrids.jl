@@ -1,3 +1,4 @@
+
 """
     RegularRectilinearCollocatedGrid{FT, TX, TY, TZ, R} <: AbstractRectilinearGrid{FT, TX, TY, TZ}
 
@@ -163,10 +164,12 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
     if dim>1
         yF = range(XF₋[2], XF₊[2]; length = N[2]+1)
         yC = range(XC₋[2], XC₊[2]; length = N[2])
-    elseif dim>2
+    end
+    if dim>2
         zF = range(XF₋[3], XF₊[3]; length = N[3]+1)
         zC = range(XC₋[3], XC₊[3]; length = N[3])
     end
+  
     if dim==1
         Face = (xF,)
         Center = (xC,)
@@ -234,7 +237,8 @@ function domain_string(grid)
     xₗ, xᵣ = grid.Face[1][1], grid.Face[1][end]
     if grid.dim>1
         yₗ, yᵣ = grid.Face[2][1], grid.Face[2][end]
-    elseif grid.dim>2
+    end
+    if grid.dim>2
         zₗ, zᵣ = grid.Face[3][1], grid.Face[3][end]
     end
     if grid.dim==1
@@ -340,16 +344,14 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{
     if grid.backend.mpi 
         N_vec = ones(Int,3);
         N_vec[1:D] = collect(grid.Ng)
-
         mpi=false
-        if isdefined(Main, :MPI)
-            mpi=true
-        end
-
-
+       # if !MPI.Initialized()
+       #     mpi=true
+       # end
+        
         me, dims, nprocs, coords, comm_cart = init_global_grid(N_vec[1], N_vec[2], N_vec[3], init_MPI=mpi, quiet=false);
-        @show (dims[1:D]...,)
-    # TBD
+        
+        # TBD
 
     end
 

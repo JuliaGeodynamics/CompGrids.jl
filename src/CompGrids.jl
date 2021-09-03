@@ -1,5 +1,8 @@
 module CompGrids
 
+using ParallelStencil
+using ImplicitGlobalGrid
+using MPI
 
 export backend,
        BackendPETSc,  BackendParallelStencil, BackendNone,

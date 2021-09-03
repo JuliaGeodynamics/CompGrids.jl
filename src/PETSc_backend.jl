@@ -27,7 +27,6 @@ function initialize_backend(b::backend{BackendPETSc}; dim=1, Scalar=Float64)
         error("MPI is not loaded; ensure it is loaded first with: using MPI")
     else
         @eval using MPI
-        
     end
     if b.mpi==true
         # Set our MPI communicator
