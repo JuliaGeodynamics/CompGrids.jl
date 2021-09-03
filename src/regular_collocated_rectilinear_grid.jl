@@ -163,7 +163,7 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
     if dim>1
         yF = range(XF₋[2], XF₊[2]; length = N[2]+1)
         yC = range(XC₋[2], XC₊[2]; length = N[2])
-    elseif dim>3
+    elseif dim>2
         zF = range(XF₋[3], XF₊[3]; length = N[3]+1)
         zC = range(XC₋[3], XC₊[3]; length = N[3])
     end
@@ -203,10 +203,11 @@ function validate_regular_grid_domain(FT, extent, x, y, z)
         L = extent;
 
         # Default domain:
-        X₁ = -1 .* L ./ 2
+        X₁ = -1 .* collect(L) ./ 2
         if dim>2
             X₁[3] = -L[3]
         end
+        X₁ = (X₁...,)
 
     else # isnothing(extent) === true implies that user has not specified a length
         
