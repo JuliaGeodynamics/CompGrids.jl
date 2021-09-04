@@ -147,6 +147,9 @@ macro init_backend(type, arch, mpi=false, Scalar=Float64)
     if type == :PETSc
         backend_type = BackendPETSc;
         type_sym = :PETSc
+        if !mpi
+            error("PETSc backend requires MPI")
+        end
     elseif type == :ParallelStencil
         backend_type = BackendParallelStencil;
         type_sym = :ParallelStencil
