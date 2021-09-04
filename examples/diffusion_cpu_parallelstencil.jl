@@ -28,7 +28,7 @@ lam        = 1.0;                                        # Thermal conductivity
 cp_min     = 1.0;                                        # Minimal heat capacity
 
 # Numerics
-grid       = RegularRectilinearCollocatedGrid( size=(64, 64, 64),  extent=(10.,10.,10.), backend=b)
+grid       = RegularRectilinearCollocatedGrid( size=(64, 64, 64),  extent=(10.,10.,10.))
 Δ,L        = grid.Δ, grid.L                             # spacing & global grid size
 nt         = 100;                                       # Number of time steps
 if mpirank==0

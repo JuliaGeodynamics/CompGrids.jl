@@ -24,6 +24,7 @@ function check_backend(b::Backend{BackendPETSc}; dim=1, Scalar=Float64)
     if (b.mpi==true && !isdefined(Main, :MPI))
         error("MPI is not loaded; ensure it is loaded first with: using MPI")
     end
+    @eval using PETSc
   
     # get the PETSc lib with our chosen `PetscScalar` type
     petsclib = PETSc.getlib(; PetscScalar = Scalar)

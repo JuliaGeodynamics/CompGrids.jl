@@ -119,14 +119,16 @@ Examples
 * A default grid with Float64 type:
 
 ```jldoctest
-julia> using CompGrids
-
-julia> grid = RegularRectilinearGrid(size=(32, 32, 32), extent=(1, 2, 3))
-RegularRectilinearGrid{Float64, Bounded, Bounded, Bounded}
-                   domain: x ∈ [0.0, 1.0], y ∈ [0.0, 2.0], z ∈ [-3.0, 0.0]
-                 topology: (Bounded, Bounded, Bounded)
-  resolution (Nx, Ny, Nz): (32, 32, 32)
-grid spacing (Δx, Δy, Δz): (0.03125, 0.0625, 0.09375)
+julia> using CompGrids, ParallelStencil
+julia> @init_backend(ParallelStencil, Threads, false, Float64);
+julia> grid = RegularRectilinearCollocatedGrid(size=(32, 32, 32), extent=(1, 2, 3))
+RegularRectilinearCollocatedGrid{Float64, 3, Backend{BackendParallelStencil}}
+        Backend: ParallelStencil ( Threads ) 
+       gridtype: Collocated 
+         domain: x ∈ [-0.5, 0.5], y ∈ [-1.0, 1.0], z ∈ [-3.0, 0.0]
+       topology: (Bounded, Bounded, Bounded)
+     resolution: (32, 32, 32)
+ grid spacing Δ: (0.03125, 0.0625, 0.09375)
 ```
 
 
@@ -136,7 +138,6 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
                                      x = nothing, y = nothing, z = nothing,
                                topology= (Bounded, Bounded, Bounded),    
                                 extent = nothing,
-                                backend= backend(),
                                     dof= 1,
                            stencilwidth= 1, 
                            stenciltype=  :Star,
@@ -280,7 +281,7 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
         dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
-    petsclib = check_backend(grid.backend, backend.Scalar);
+    petsclib = check_backend(grid.backend, Scalar=backend.Scalar);
     
     # make PETSc available
     #@eval using PETSc
