@@ -276,14 +276,14 @@ end
 
 Initializes a `DMDA` object using the `PETSc` backend.
 """
-function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{BackendPETSc}};
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendPETSc}};
         dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
-    petsclib, comm = initialize_backend(grid.backend, Scalar=FT);
+    petsclib = check_backend(grid.backend, backend.Scalar);
     
     # make PETSc available
-    @eval using PETSc
+    #@eval using PETSc
     
     # Transform local boundaries to PETSc boundary conditions 
     bcs = Vector{PETSc.LibPETSc.DMBoundaryType}(undef, D)
@@ -320,7 +320,7 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{
     PETSc.setuniformcoordinates!(da, (c_start...,), (c_end...,))
 
     # Determine number of local grid points
-    # TBD
+    # TBD - add parallel info to struct
 
     # Store info in a PETSc data object
     grid.petsc = petsc_data(petsclib, da)
@@ -334,24 +334,24 @@ end
 
 Initializes a grid when we use `ParallelStencil` as a Backend
 """
-function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, backend{BackendParallelStencil}};
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil}};
         dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
-    initialize_backend(grid.backend);
+    check_backend(grid.backend);
     
     # retrieve global grid & local grid dimensions
     if grid.backend.mpi 
         N_vec = ones(Int,3);
         N_vec[1:D] = collect(grid.Ng)
         mpi=false
-       # if !MPI.Initialized()
-       #     mpi=true
-       # end
+        if !MPI.Initialized()
+            mpi=true
+        end
         
         me, dims, nprocs, coords, comm_cart = init_global_grid(N_vec[1], N_vec[2], N_vec[3], init_MPI=mpi, quiet=false);
         
-        # TBD
+        # TBD - add parallel info to grid structure
 
     end
 

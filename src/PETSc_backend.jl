@@ -12,36 +12,26 @@ end
 petsc_data() = petsc_data(nothing,nothing)
 
 """
-    start_backend(backend{BackendPETSc}; Scalar=Float64, dim=1)
+    check_backend(backend{BackendPETSc}; Scalar=Float64, dim=1)
 
-Starts the PETSc backend for the `Scalar`, which loads PETSc (and, if requested, MPI)
+checks PETSc backend for the `Scalar`, which loads PETSc (and, if requested, MPI)
 """
-function initialize_backend(b::backend{BackendPETSc}; dim=1, Scalar=Float64)
+function check_backend(b::Backend{BackendPETSc}; dim=1, Scalar=Float64)
     
     if !isdefined(Main, :PETSc)
         error("PETSc is not loaded; ensure it is loaded first with: using PETSc")
-    else
-        @eval using PETSc
     end
     if (b.mpi==true && !isdefined(Main, :MPI))
         error("MPI is not loaded; ensure it is loaded first with: using MPI")
-    else
-        @eval using MPI
     end
-    if b.mpi==true
-        # Set our MPI communicator
-        comm = MPI.COMM_WORLD
-    else
-        comm = nothing
-    end
-
+  
     # get the PETSc lib with our chosen `PetscScalar` type
     petsclib = PETSc.getlib(; PetscScalar = Scalar)
 
     # Initialize PETSc
     PETSc.initialize(petsclib)
 
-    return petsclib, comm
+    return petsclib
 end
 
 # Internal function that translates the CompGrids topology to PETSc nomenclature

@@ -1,18 +1,20 @@
 using CompGrids
+const PS_MPI = true
 using ParallelStencil
 using ParallelStencil.FiniteDifferences3D
-using ImplicitGlobalGrid
 using MPI
+    
+@static if PS_MPI
+    # using MPI-parallel setup
+    using ImplicitGlobalGrid
 
-const USE_GPU = false
-@static if USE_GPU
-    @init_parallel_stencil(CUDA, Float64, 3);
-else
     @init_parallel_stencil(Threads, Float64, 3);
+    @init_backend(ParallelStencil, Threads, true);
+else
+    # no MPI
+    @init_parallel_stencil(Threads, Float64, 3);
+    @init_backend(ParallelStencil, Threads, false);
 end
-
-MPI.Init()
-b          = backend(type=:ParallelStencil,arch=:CPU,mpi=true);
 
 @parallel function diffusion3D_step!(T2, T, Ci, lam, dt, dx, dy, dz)
     @inn(T2) = @inn(T) + dt*(lam*@inn(Ci)*(@d2_xi(T)/dx^2 + @d2_yi(T)/dy^2 + @d2_zi(T)/dz^2));
@@ -20,8 +22,7 @@ b          = backend(type=:ParallelStencil,arch=:CPU,mpi=true);
 end
 
 function diffusion3D(b)
-mpirank =  MPI.Comm_rank(MPI.COMM_WORLD)
-
+    
 # Physics
 lam        = 1.0;                                        # Thermal conductivity
 cp_min     = 1.0;                                        # Minimal heat capacity
@@ -31,7 +32,7 @@ grid       = RegularRectilinearCollocatedGrid( size=(64, 64, 64),  extent=(10.,1
 Δ,L        = grid.Δ, grid.L                             # spacing & global grid size
 nt         = 100;                                       # Number of time steps
 if mpirank==0
-@show grid
+    @show grid
 end
 
 # Array initializations
@@ -58,7 +59,10 @@ for it = 1:nt
         println(it)
     end
 end
-finalize_global_grid();
+
+if backend.mpi
+    finalize_global_grid();
+end
 end
 
-diffusion3D(b)
+diffusion3D(backend)
