@@ -143,7 +143,14 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
                            stenciltype=  :Star,
                             petsc_opts=  (),
                               )
+    if typeof(size)==Int64
+        size = (size,);
+    end
 
+    if typeof(extent)==FT
+        extent = (extent,);
+    end
+    
     dim =   length(size)                    # dimensions of the grid [1-3]
     L, X₁ = validate_regular_grid_domain(FT, extent, x, y, z)
 

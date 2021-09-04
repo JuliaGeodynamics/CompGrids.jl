@@ -22,10 +22,16 @@ using Test, CompGrids, ParallelStencil, MPI, PETSc
         end
     end
 
+    # Specify with x-coordinates
+    grid = RegularRectilinearCollocatedGrid(size=(10,), x=(-5, 12))
+    @test grid.L[1] == 17.0
+
+    # Specify as single numbers (instead of Tuple)
+    grid = RegularRectilinearCollocatedGrid(size=10, extent=100.0)
+    @test grid.L[1] == 100.0
+
 end
 
-
-# Grid generation, 2D
 @testset "PETSc grids" begin
     size_t = (32,32,32)
     length = (1, 2, 3)

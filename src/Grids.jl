@@ -16,7 +16,7 @@ export
     AbstractRectilinearGrid, RegularRectilinearCollocatedGrid,
     initialize_grid!
 
-import Base: size, length, eltype, show
+import Base: size, length, eltype, show, convert
 
 #####
 ##### Abstract types
@@ -123,6 +123,7 @@ abstract type AbstractRectilinearCollocatedGrid{FT, DIM,  B} <: AbstractGrid{FT,
 Base.eltype(::AbstractGrid{FT}) where FT = FT
 Base.size(grid::AbstractGrid) = (grid.Nx, grid.Ny, grid.Nz)
 Base.length(grid::AbstractGrid) = (grid.Lx, grid.Ly, grid.Lz)
+
 
 # Include the different grid types 
 include("regular_collocated_rectilinear_grid.jl")
