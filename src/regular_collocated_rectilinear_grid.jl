@@ -45,7 +45,7 @@ mutable struct RegularRectilinearCollocatedGrid{FT, D, B} <: AbstractRectilinear
 end
 
 """
-        RegularRectilinearCollocatedGrid(FT=Float64;
+        RegularRectilinearCollocatedGrid(;
                             size,
                             x = nothing, y = nothing, z = nothing,
                             topology= (Bounded, Bounded, Bounded),    
@@ -97,8 +97,7 @@ indicating the left and right endpoints of each dimensions, e.g. `x=(0, 10)` or 
 the `extent` argument, e.g. `extent=(Lx, Ly, Lz)` which specifies the extent of each dimension
 in which case -Lx/2 ≤ x ≤ Lx/2, -Ly/2 ≤ y ≤ Ly/2, and -Lz ≤ z ≤ 0.
 
-Constants are stored using floating point values of type `FT`. By default this is `Float64`.
-Make sure to specify the desired `FT` if not using `Float64`.
+Constants are stored using floating point values of type `FT`, which is the type specified in the backend structure
 
 Grid properties
 ===============
@@ -133,7 +132,7 @@ RegularRectilinearCollocatedGrid{Float64, 3, Backend{BackendParallelStencil}}
 
 
 """
-function RegularRectilinearCollocatedGrid(FT=Float64;
+function RegularRectilinearCollocatedGrid(;
                                     size,
                                      x = nothing, y = nothing, z = nothing,
                                topology= (Bounded, Bounded, Bounded),    
@@ -143,12 +142,14 @@ function RegularRectilinearCollocatedGrid(FT=Float64;
                            stenciltype=  :Star,
                             petsc_opts=  (),
                               )
+    FT = backend.Scalar;        # Scalar type
+
     if typeof(size)==Int64
         size = (size,);
     end
 
     if typeof(extent)==FT
-        extent = (extent,);
+        extent = (size,);
     end
     
     dim =   length(size)                    # dimensions of the grid [1-3]
@@ -284,7 +285,7 @@ end
 
 Initializes a `DMDA` object using the `PETSc` backend.
 """
-function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendPETSc}};
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendPETSc,FT}};
         dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
@@ -342,7 +343,7 @@ end
 
 Initializes a grid when we use `ParallelStencil` as a Backend
 """
-function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil}};
+function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil,FT}};
         dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
 
     # initialize backend
@@ -354,7 +355,7 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
         N_vec[1:D] = collect(grid.Ng)
         mpi=false
         if !MPI.Initialized()
-            mpi=true
+            mpi=false
         end
         
         me, dims, nprocs, coords, comm_cart = init_global_grid(N_vec[1], N_vec[2], N_vec[3], init_MPI=mpi, quiet=false);

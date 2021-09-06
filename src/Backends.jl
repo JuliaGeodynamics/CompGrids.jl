@@ -12,12 +12,12 @@ export  backend, Backend,
         comm, mpirank, mpisize
 
 """
-    AbstractBackend{type} 
+    AbstractBackend{type, FT} 
 
 Abstract supertype that specifies the backend of the simulation (PETSc.jl, ParallelStencil, None) as well as how 
 the simulation is being setup (MPI or not)
 """
-abstract type AbstractBackend{type} end
+abstract type AbstractBackend{type, FT} end
 
 """
     AbstractTypeBackend
@@ -60,11 +60,11 @@ Structure that defines the backend used for the computional grid
 
 
 """
-struct Backend{T} <: AbstractBackend{T}
+struct Backend{T,FT} <: AbstractBackend{T,FT}
     type   :: Symbol
     arch   :: Symbol
     mpi    :: Bool
-    Scalar :: DataType 
+    Scalar :: DataType
 end
 
 """
@@ -78,7 +78,7 @@ Specify the backend we are using as well as whether the simulation is done on an
 - `dim`: Number of dimensions (only relevant for `ParallelStencil`)
 
 """
-function Backend(; arch::Symbol=:CPU, type::Symbol=:PETSc, mpi::Bool=true)
+function Backend(; arch::Symbol=:CPU, type::Symbol=:PETSc, mpi::Bool=true) where FT
     global backend
 
     @show type, typeof(type)
@@ -92,16 +92,16 @@ function Backend(; arch::Symbol=:CPU, type::Symbol=:PETSc, mpi::Bool=true)
         backend_type = BackendNone;
     end
 
-    return Backend{backend_type}(type, arch, mpi)
+    return Backend{backend_type, FT}(type, arch, mpi, Scalar)
 end
 
 
 # Printing 
-function show(io::IO, b::Backend)
+function show(io::IO, b::Backend{type,FT}) where {type,FT}
     if b.mpi
-        println(io, "Backend{$(b.Scalar)}: $(b.type) ($(b.arch) | MPI)")
+        println(io, "Backend{$(FT)}: $(b.type) ($(b.arch) | MPI)")
     else
-        println(io, "Backend{$(b.Scalar)}: $(b.type) ($(b.arch) | no MPI)")
+        println(io, "Backend{$(FT)}: $(b.type) ($(b.arch) | no MPI)")
     end
 end
 
@@ -116,14 +116,12 @@ Specify the backend we are using as well as whether the simulation is done on an
 
 - `type`: `:ParallelStencil`, `:PETSc` (requires loading the corresponding packages), or `:Julia` (julia native)
 - `arch`: `:CPU`,`:GPU`,`:CUDA` 
-- `mpi`: Boolean that indicates if we employ MPI or not. Note that PETSc always requires MPI 
+- `mpi`: Boolean that indicates if we employ MPI or not. Note that PETSc always requires MPI (and currently only works with CPU)
 - `Scalar`: Type of Scalar
 
 """
-macro init_backend(type, arch, mpi=false, Scalar=Float64)
+macro init_backend(type, arch, mpi::Bool=false, FT=Float64)
     global backend, comm, mpirank, mpisize
-
-    #backend = Backend(arch=arch, type=type, mpi=mpi); 
 
     mpirank = 0
     mpisize = 1
@@ -168,6 +166,6 @@ macro init_backend(type, arch, mpi=false, Scalar=Float64)
         arch_sym = :CPU
     end
 
-    backend = Backend{backend_type}(type_sym, arch_sym, mpi, Scalar)
+    backend = Backend{backend_type, eval(FT)}(type_sym, arch_sym, mpi, eval(FT))
 
 end

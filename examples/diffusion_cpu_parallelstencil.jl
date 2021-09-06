@@ -1,5 +1,5 @@
 using CompGrids
-const PS_MPI = true
+const PS_MPI = false
 using ParallelStencil
 using ParallelStencil.FiniteDifferences3D
 using MPI
@@ -8,12 +8,12 @@ using MPI
     # using MPI-parallel setup
     using ImplicitGlobalGrid
 
-    @init_parallel_stencil(Threads, Float64, 3);
-    @init_backend(ParallelStencil, Threads, true);
+    @init_parallel_stencil(Threads, Float32, 3);
+    @init_backend(ParallelStencil, Threads, true, Float32);
 else
     # no MPI
     @init_parallel_stencil(Threads, Float64, 3);
-    @init_backend(ParallelStencil, Threads, false);
+    @init_backend(ParallelStencil, Threads, false, Float64);
 end
 
 @parallel function diffusion3D_step!(T2, T, Ci, lam, dt, dx, dy, dz)
@@ -28,7 +28,7 @@ lam        = 1.0;                                        # Thermal conductivity
 cp_min     = 1.0;                                        # Minimal heat capacity
 
 # Numerics
-grid       = RegularRectilinearCollocatedGrid( size=(64, 64, 64),  extent=(10.,10.,10.))
+grid       = RegularRectilinearCollocatedGrid(size=(64, 64, 64),  extent=(10.,10.,10.))
 Δ,L        = grid.Δ, grid.L                             # spacing & global grid size
 nt         = 100;                                       # Number of time steps
 if mpirank==0
@@ -61,7 +61,7 @@ for it = 1:nt
 end
 
 if backend.mpi
-    finalize_global_grid();
+ #   finalize_global_grid();
 end
 end
 
