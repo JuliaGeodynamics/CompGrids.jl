@@ -45,17 +45,19 @@ mutable struct RegularRectilinearCollocatedGrid{FT, D, B} <: AbstractRectilinear
     Face_global  :: NTuple{D,StepRangeLen}
     
     # Indices of local portion of grid in x/y/z direction (w/out halo)
-    ind_local
+    ind_local :: NTuple{D,UnitRange{Int}}
 
     # Backend employed
     backend :: B
     
-    # store PS or PETSc specific info
-    petsc   :: petsc_data 
+    # store PETSc specific info (if used)
+    PETSc   :: petsc_data 
 
-    # Parallel layout
+    # store data in case we employ ImplicitGlobalGrid
+    IGG                  
 
-    # Parallel Neighbors 
+    # fields
+    fields
 
 end
 
@@ -66,7 +68,7 @@ end
                             x = nothing, y = nothing, z = nothing,
                             topology= (Bounded, Bounded, Bounded),    
                              extent = nothing,
-                             backend= backend()
+                             fields = NamedTuple(),
                                  dof= 1,
                         stencilwidth= 1, 
                          stenciltype= :Star,
@@ -92,7 +94,7 @@ Keyword arguments
               This is also used to set the type of the `DMDA` boundary conditions in case of using the `PETSc` backend. 
               Examples are `Bounded`, `Ghost`, `Periodic`
 
-- `backend`: the backend used for the grid indicating whether we use ParallelStencil, PETSc or native Julia                  
+- `fields`: A NamedTuple with the names of fields that are initialized using the correct backend usinng a specifiable, constant, value (e.g., `fields=(T=0, P=11.1)`)                  
 
 *Note*: 
 - _Either_ `extent`, or all of `x`, `y`, and `z` must be specified.
@@ -162,10 +164,11 @@ function RegularRectilinearCollocatedGrid(;
                                      x = nothing, y = nothing, z = nothing,
                                topology= (Bounded, Bounded, Bounded),    
                                 extent = nothing,
+                                fields = NamedTuple(),
                                     dof= 1,
                            stencilwidth= 1, 
-                           stenciltype=  :Star,
-                                  opts=  ()
+                            stenciltype= :Star,
+                                   opts= ()
                               )
     FT = backend.Scalar;        # Scalar type
     
@@ -217,22 +220,28 @@ function RegularRectilinearCollocatedGrid(;
     end
     
     # Local coordinate index arrays (updated for parallel simulations)
-    ind_local = (1:N[1],)
+    ind_local = ()
     for idim=1:dim
         ind_local = (ind_local..., 1:N[idim])
     end
 
     # Initialise backend and create grid structure
     grid = RegularRectilinearCollocatedGrid{FT, dim, typeof(backend)}(
-          dim, N, N, N, topology[1:dim], stencilwidth, L, Δ, 
-          Center, Face, Center, Face, ind_local, backend, petsc_data())
+          dim, N, N, N,                                 # dimensions
+          topology[1:dim],                              # boundary conditions
+          stencilwidth,                                 # size of halo (in parallel)
+          L, Δ,                                         # domain size and (regular) spacing 
+          Center, Face, Center, Face, ind_local,        # data related to the 1D local/global coordinate grids
+          backend, petsc_data(), nothing,               # data related to backend
+          ())                                           # fields              
 
     # Initialize grid      
     initialize_grid!(grid, 
                              dof= dof, 
                     stencilwidth= stencilwidth, 
                     stenciltype = stenciltype,
-                            opts= opts)
+                            opts= opts,
+                          fields= fields)
 
     return grid
 end
@@ -322,7 +331,8 @@ function show(io::IO, g::RegularRectilinearCollocatedGrid{FT, DIM, B}) where {FT
               "         domain: $(domain_string(g)) \n",
               "       topology: ", g.topology, '\n',
               "     resolution: $(resolution_string(g))\n",
-              " grid spacing Δ: ", g.Δ)
+              " grid spacing Δ: ", g.Δ, "\n",
+              "         fields: $(keys(g.fields)) \n" )
 end
 
 
@@ -335,7 +345,7 @@ end
 Initializes a `DMDA` object using the `PETSc` backend.
 """
 function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendPETSc,FT}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=(), fields::NamedTuple=()) where {FT, D}
 
     # initialize backend
     petsclib = check_backend(grid.backend, Scalar=backend.Scalar);
@@ -393,16 +403,18 @@ end
 Initializes a grid when we use `ParallelStencil` (and potentially `ImplicitGlobalGrid`) as a Backend
 """
 function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil,FT}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=nothing) where {FT, D}
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=nothing, fields::NamedTuple=()) where {FT, D}
 
     # initialize backend
     check_backend(grid.backend);
     
     # retrieve global & local grid dimensions
     if grid.backend.mpi 
-        initialize_backend!(grid, grid.backend, stencilwidth, opts)
+        initialize_backend!(grid, grid.backend, stencilwidth, opts, fields)
     end
 
+    # Initialize fields
+    initialize_fields!(grid, grid.backend, fields)
 
 end
 

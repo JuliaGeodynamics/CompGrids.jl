@@ -35,7 +35,7 @@ function check_backend(b::Backend{BackendParallelStencil}; dim=1, Scalar=Float64
 end
 
 
-function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwidth, opts)
+function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwidth, opts, fields::NamedTuple)
 
     N_vec = ones(Int,3);
     D = grid.dim
@@ -65,6 +65,7 @@ function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwi
                                                             opts...);
     
     IGG_data = ImplicitGlobalGrid.get_global_grid()     
+    grid.IGG = IGG_data;                    # store
 
     # Store local grid dimensions
     grid.Nl = (Nl_halo[1:D]...,)            # local with halo
@@ -82,7 +83,41 @@ function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwi
     # Update the 1D coordinate vectors 
     local_coordinates!(grid, grid.backend)
 
-    return IGG_data
+    return nothing
 
 end
 
+"""
+    initialize_fields!(grid, b::Backend{BackendParallelStencil}, fields::NamedTuple)
+
+This initializes fields to a grid structure, in case the `ParallelStencil` is employed. 
+The names of the fields are a NamedTuple, which specifies the initial value (constant) value of the arrays.
+Exaples are `fields=(T=0, P=1, Ci=2)`
+
+# Example
+=========
+```
+julia> @init_backend(ParallelStencil, Threads, false, Float64);
+julia> initialize_fields!(grid, b::Backend{BackendParallelStencil}, fields::NTuple)
+```
+
+"""
+function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields::NamedTuple) where FT
+    
+    names = keys(fields)
+    fields_local = ();
+    for ifield=1:length(fields)
+
+        # Created named tuple for new field. We use @eval here, to avoid 
+        name = names[ifield]
+        value = fields[ifield]
+        
+        # Create a string with the expression to be evaluated (as calling @ones directly induces a compilation error)
+        str = "new_field = @ones$(grid.Nl)*$value"      
+        eval(Meta.parse(str))                       # evaluate string
+        
+        # Add to Tuple        
+        fields_local = (fields_local..., new_field)
+    end
+    grid.fields = NamedTuple{names}(fields_local)
+end
