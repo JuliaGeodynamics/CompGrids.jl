@@ -2,7 +2,7 @@ using Test
 using MPI: mpiexec
 
 # Do the MPI tests first so we do not have mpi running inside MPI
-mpi_tests = ("parallelstencil_mpi.jl", )
+mpi_tests = ("parallelstencil_mpi.jl", "petsc_mpi.jl")
 
 # Perform the MPI tests 
 for file in mpi_tests

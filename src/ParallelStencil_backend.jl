@@ -118,8 +118,5 @@ function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields
         
         # Add to Tuple        
         grid.fields = add_field(grid.fields,name,new_field)
-        
-        #fields_local = (fields_local..., new_field)
     end
-    #grid.fields = NamedTuple{names}(fields_local)
 end

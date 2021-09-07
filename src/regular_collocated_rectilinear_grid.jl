@@ -306,9 +306,14 @@ end
 
 function resolution_string(g)
     if g.backend.mpi
-        str = "$(g.N) (global, no halo)
-                 $(g.Nl) (local  + halo)
-                 $(g.Ng) (global + halo)"
+        if g.backend.type==:ParallelStencil
+            str = "$(g.N) (global, no halo)
+                    $(g.Nl) (local  + halo)
+                    $(g.Ng) (global + halo)"
+        else
+            str = "$(g.N) (global, no halo)
+                 $(g.Nl) (local,  no halo)"
+        end
 
     else
         str="$(g.N)"
@@ -350,9 +355,6 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
     # initialize backend
     petsclib = check_backend(grid.backend, Scalar=backend.Scalar);
     
-    # make PETSc available
-    #@eval using PETSc
-    
     # Transform local boundaries to PETSc boundary conditions 
     bcs = Vector{PETSc.LibPETSc.DMBoundaryType}(undef, D)
     for idim=1:D
@@ -378,7 +380,7 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
         opts...,
     )
 
-    # Set coordinates
+    # Set regular coordinates
     c_start = -1*ones(D)
     c_end = ones(D)
     for idim=1:D
@@ -388,10 +390,25 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
     PETSc.setuniformcoordinates!(da, (c_start...,), (c_end...,))
 
     # Determine number of local grid points
-    # TBD - add parallel info to struct
+    corners = PETSc.getcorners(da)
+    grid.Nl = corners.size[1:D]         # local with no halo
+    grid.Ng = PETSc.getinfo(da).global_size[1:D]     # global size 
+     
+    # Add local coordinates of Faces (can likely be done more elegantly)
+    coord = PETSc.getlocalcoordinatearray(da)   # local coordinate array
+    Face_local=Center_local=()
+    for iDim=1:D
+        Face = coord[iDim,corners.lower]:grid.Δ[iDim]:coord[iDim,corners.upper]
+        Center = (Face[2:end] .+ Face[1:end-1])./2.0
+        
+        Face_local = (Face_local..., Face)
+        Center_local = (Center_local..., Center)
+    end
+    grid.Face = Face_local
+    grid.Center = Center_local
 
     # Store info in a PETSc data object
-    grid.petsc = petsc_data(petsclib, da)
+    grid.PETSc = petsc_data(petsclib, da)
 
     return nothing
 end
