@@ -169,3 +169,41 @@ macro init_backend(type, arch, mpi::Bool=false, FT=Float64)
     backend = Backend{backend_type, eval(FT)}(type_sym, arch_sym, mpi, eval(FT))
 
 end
+
+
+
+"""
+    localgridsize(mpi,N, opts)
+
+Computes the local grid size given a global grid and an MPI communicator (not taking halo into account).
+
+"""
+function localgridsize(mpi,N, opts)
+    dim = length(N);
+    dims = zeros(Int64,dim)
+    
+    if !mpi
+        N_l = N
+    else
+        dims[dim+1:end] .= 1;       # fix 
+        if typeof(opts) <: Dict # process command-line options
+            dims[1] = get(opts, :dimx, dims[1]);
+            if dim>1;   dims[2] = get(opts, :dimy, dims[2]);    end
+            if dim>2;   dims[3] = get(opts, :dimz, dims[3]);    end
+        end
+
+        # Use MPI to compute processor partitioning (dims contain the # of processors in each direction)
+        MPI.Dims_create!(mpisize,dims)   
+
+        # Compute local from global size
+        N_l = N./dims
+        if any(abs.(mod.(N_l,1.0)) .> 0)
+            error("Grid size cannot be distributed over the given number of MPI ranks; N_l=$N_l; dims=$dims ")
+        end
+
+        N_l = (Int64.(N_l)...,)
+
+    end
+
+    return N_l, dims
+end

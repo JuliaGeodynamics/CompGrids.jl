@@ -11,26 +11,41 @@ mutable struct RegularRectilinearCollocatedGrid{FT, D, B} <: AbstractRectilinear
     # number of dimensions
     dim :: Int
 
-    # Number of global grid points in (x,y,z).
-    Ng :: NTuple{D,Int}
-    
-    # Number of locak grid points in (x,y,z).
+    # Number of global grid points in (x,y,z) [is specified by user]
     N  :: NTuple{D,Int}
+    
+    # Actual number of global grid points in (x,y,z) (includes halo if using IGG)
+    Ng :: NTuple{D,Int}
+
+    # Local number of local grid points in (x,y,z) on everty processor (w/oout halo)
+    Nl :: NTuple{D,Int}
 
     # Topology
     topology :: NTuple{D,DataType}
     
+    # Stencilwidth
+    stencilwidth :: Int
+
     # Domain size
     L  :: NTuple{D,FT}
     
     # Grid spacing 
     Δ  :: NTuple{D,FT}
     
-    # Range of (global) coordinates at the centers of the cells.
+    # Range of (local) coordinates at the centers of the cells. 
     Center  :: NTuple{D,StepRangeLen}
     
-    # Range of (global) coordinates at the faces of the cells.
+    # Range of (local) coordinates  (+halo in case of IGG) at the faces of the cells.
     Face  :: NTuple{D,StepRangeLen}
+
+    # Range of (global) coordinates at the centers of the cells.
+    Center_global  :: NTuple{D,StepRangeLen}
+    
+    # Range of (global) coordinates at the faces of the cells.
+    Face_global  :: NTuple{D,StepRangeLen}
+    
+    # Indices of local portion of grid in x/y/z direction (w/out halo)
+    ind_local
 
     # Backend employed
     backend :: B
@@ -46,7 +61,8 @@ end
 
 """
         RegularRectilinearCollocatedGrid(;
-                            size,
+                            size=nothing,
+                            size_local=nothing,
                             x = nothing, y = nothing, z = nothing,
                             topology= (Bounded, Bounded, Bounded),    
                              extent = nothing,
@@ -54,7 +70,7 @@ end
                                  dof= 1,
                         stencilwidth= 1, 
                          stenciltype= :Star,
-                          petsc_opts= (),
+                                opts= (),
                         )
 
 Creates a `RegularRectilinearCollocatedGrid` with `size = (Nx, Ny, Nz)` grid cells. 
@@ -78,7 +94,10 @@ Keyword arguments
 
 - `backend`: the backend used for the grid indicating whether we use ParallelStencil, PETSc or native Julia                  
 
-*Note*: _Either_ `extent`, or all of `x`, `y`, and `z` must be specified.
+*Note*: 
+- _Either_ `extent`, or all of `x`, `y`, and `z` must be specified.
+- _Either_ `size`, or `size_local` (the dimensions per processor; preferred by IGG) must be specified.
+
 
 Optional PETSc arguments
 ========================
@@ -89,8 +108,14 @@ Optional PETSc arguments
 
 - `stenciltype`: the type of the stencil (`:Star` or `:Box`)                    
 
-- `petsc_opts`: additional PETSc options                    
+- `opts`: additional PETSc options                    
 
+Optional ImplicitGlobalGrid arguments
+=====================================
+
+- `stencilwidth`=1: the width of the stencil (`overlapx`=`overlapy`=`overlapz`= `stencilwidth+1`)  
+
+- `opts::Dict`: a dictionary that contains additional options that can be passed to IGG, such as `opts=Dict(:dimy=>2,:dimx=>1)`
 
 The physical extent of the domain can be specified via `x`, `y`, and `z` keyword arguments
 indicating the left and right endpoints of each dimensions, e.g. `x=(0, 10)` or via
@@ -140,24 +165,25 @@ function RegularRectilinearCollocatedGrid(;
                                     dof= 1,
                            stencilwidth= 1, 
                            stenciltype=  :Star,
-                            petsc_opts=  (),
+                                  opts=  ()
                               )
     FT = backend.Scalar;        # Scalar type
-
+    
+    
     if typeof(size)==Int64
         size = (size,);
     end
 
     if typeof(extent)==FT
-        extent = (size,);
+        extent = (extent,);
     end
     
-    dim =   length(size)                    # dimensions of the grid [1-3]
+    dim =   length(size)                        # dimensions of the grid [1-3]
     L, X₁ = validate_regular_grid_domain(FT, extent, x, y, z)
 
     # Unpacking
     N = size
-    Δ = L ./ N
+    Δ = L ./ (N .- FT(1))
     
     # Face-node limits in x, y, z
     XF₋ = @. X₁ 
@@ -168,15 +194,15 @@ function RegularRectilinearCollocatedGrid(;
     XC₊ = @. XC₋ + L - Δ
 
     # Generate 1D coordinate arrays
-    xF = range(XF₋[1], XF₊[1]; length = N[1]+1)
-    xC = range(XC₋[1], XC₊[1]; length = N[1])
+    xF = range(XF₋[1], XF₊[1]; length = N[1])
+    xC = range(XC₋[1], XC₊[1]; length = N[1]-1)
     if dim>1
-        yF = range(XF₋[2], XF₊[2]; length = N[2]+1)
-        yC = range(XC₋[2], XC₊[2]; length = N[2])
+        yF = range(XF₋[2], XF₊[2]; length = N[2])
+        yC = range(XC₋[2], XC₊[2]; length = N[2]-1)
     end
     if dim>2
-        zF = range(XF₋[3], XF₊[3]; length = N[3]+1)
-        zC = range(XC₋[3], XC₊[3]; length = N[3])
+        zF = range(XF₋[3], XF₊[3]; length = N[3])
+        zC = range(XC₋[3], XC₊[3]; length = N[3]-1)
     end
   
     if dim==1
@@ -189,17 +215,24 @@ function RegularRectilinearCollocatedGrid(;
         Face = (xF,yF,zF)
         Center = (xC,yC,zC)
     end
+    
+    # Local coordinate index arrays (updated for parallel simulations)
+    ind_local = (1:N[1],)
+    for idim=1:dim
+        ind_local = (ind_local..., 1:N[idim])
+    end
 
     # Initialise backend and create grid structure
     grid = RegularRectilinearCollocatedGrid{FT, dim, typeof(backend)}(
-          dim, N, N, topology[1:dim], L, Δ, Center, Face, backend, petsc_data())
+          dim, N, N, N, topology[1:dim], stencilwidth, L, Δ, 
+          Center, Face, Center, Face, ind_local, backend, petsc_data())
 
-    # Construct grid      
+    # Initialize grid      
     initialize_grid!(grid, 
                              dof= dof, 
                     stencilwidth= stencilwidth, 
                     stenciltype = stenciltype,
-                            opts= petsc_opts)
+                            opts= opts)
 
     return grid
 end
@@ -243,12 +276,12 @@ end
 
 function domain_string(grid)
     
-    xₗ, xᵣ = grid.Face[1][1], grid.Face[1][end]
+    xₗ, xᵣ = grid.Face_global[1][1], grid.Face_global[1][end]
     if grid.dim>1
-        yₗ, yᵣ = grid.Face[2][1], grid.Face[2][end]
+        yₗ, yᵣ = grid.Face_global[2][1], grid.Face_global[2][end]
     end
     if grid.dim>2
-        zₗ, zᵣ = grid.Face[3][1], grid.Face[3][end]
+        zₗ, zᵣ = grid.Face_global[3][1], grid.Face_global[3][end]
     end
     if grid.dim==1
         return "x ∈ [$xₗ, $xᵣ]"
@@ -258,6 +291,22 @@ function domain_string(grid)
         return "x ∈ [$xₗ, $xᵣ], y ∈ [$yₗ, $yᵣ], z ∈ [$zₗ, $zᵣ]"
     end
 end
+
+
+
+
+function resolution_string(g)
+    if g.backend.mpi
+        str = "$(g.N) (global, no halo)
+                 $(g.Nl) (local  + halo)
+                 $(g.Ng) (global + halo)"
+
+    else
+        str="$(g.N)"
+    end
+    return str
+end
+
 
 function show(io::IO, g::RegularRectilinearCollocatedGrid{FT, DIM, B}) where {FT, DIM, B}
     
@@ -270,9 +319,9 @@ function show(io::IO, g::RegularRectilinearCollocatedGrid{FT, DIM, B}) where {FT
     print(io, "RegularRectilinearCollocatedGrid{$FT, $DIM, $B}\n",
               "        Backend: $(g.backend.type) ( $(g.backend.arch) $mpi_type) \n",
               "       gridtype: Collocated \n",
-              "         domain: $(domain_string(g))\n",
+              "         domain: $(domain_string(g)) \n",
               "       topology: ", g.topology, '\n',
-              "     resolution: ", g.N, '\n',
+              "     resolution: $(resolution_string(g))\n",
               " grid spacing Δ: ", g.Δ)
 end
 
@@ -341,29 +390,49 @@ end
 """
     initialize_grid(grid::RegularRectilinearCollocatedGrid{FT, 2, backend{BackendParallelStencil}})
 
-Initializes a grid when we use `ParallelStencil` as a Backend
+Initializes a grid when we use `ParallelStencil` (and potentially `ImplicitGlobalGrid`) as a Backend
 """
 function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil,FT}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=()) where {FT, D}
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=nothing) where {FT, D}
 
     # initialize backend
     check_backend(grid.backend);
     
-    # retrieve global grid & local grid dimensions
+    # retrieve global & local grid dimensions
     if grid.backend.mpi 
-        N_vec = ones(Int,3);
-        N_vec[1:D] = collect(grid.Ng)
-        mpi=false
-        if !MPI.Initialized()
-            mpi=false
-        end
-        
-        me, dims, nprocs, coords, comm_cart = init_global_grid(N_vec[1], N_vec[2], N_vec[3], init_MPI=mpi, quiet=false);
-        
-        # TBD - add parallel info to grid structure
-
+        initialize_backend!(grid, grid.backend, stencilwidth, opts)
     end
 
 
+end
+
+"""
+    local_coordinates(b::Backend{BackendParallelStencil}, grid)
+
+Computes local coordinate vectors, including the halo points 
+"""
+function local_coordinates!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil,FT}}, b::Backend{BackendParallelStencil}) where {FT, D}
+
+    Face_local=Center_local=()
+    for idim=1:grid.dim
+        ind_nohalo = grid.ind_local[idim];
+        
+        # As we have a constant grid-spacing this is easy
+        ind_s, ind_e = ind_nohalo[1], ind_nohalo[end]
+        stencilwidth = grid.stencilwidth
+        
+        range_local = -stencilwidth:(ind_e-ind_s)+stencilwidth;
+
+        Face = range_local*grid.Δ[idim] .+ grid.Face[idim][ind_s]
+        Center = (Face[2:end] .+ Face[1:end-1])./2.0
+        
+        Face_local = (Face_local..., Face)
+        Center_local = (Center_local..., Center)
+    end
+  
+    grid.Face   = Face_local;
+    grid.Center = Center_local;
+
+    return nothing
 
 end

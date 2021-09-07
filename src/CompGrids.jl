@@ -13,7 +13,7 @@ export backend,
        # Boundary topology
 
        # Grids
-       RegularRectilinearCollocatedGrid, Bounded, Flat2D, Ghosted, Periodic
+       RegularRectilinearCollocatedGrid, Bounded, Ghosted, Periodic
 
 
 
@@ -24,6 +24,7 @@ include("ParallelStencil_backend.jl")
 include("Grids.jl")
 
 # Declare the backend we are employing:
+
 
 # Define different grid types
 
