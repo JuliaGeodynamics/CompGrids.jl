@@ -91,11 +91,12 @@ end
     initialize_fields!(grid, b::Backend{BackendParallelStencil}, fields::NamedTuple)
 
 This initializes fields to a grid structure, in case the `ParallelStencil` is employed. 
-The names of the fields are a NamedTuple, which specifies the initial value (constant) value of the arrays.
-Exaples are `fields=(T=0, P=1, Ci=2)`
+The names of the fields are a NamedTuple, which specifies the initial value (constant) value of the arrays, such as `fields=(T=0, P=1, Ci=2)`.
+
+Note: typically, this routine is not called directly but as part of setting up the grid
 
 # Example
-=========
+
 ```
 julia> @init_backend(ParallelStencil, Threads, false, Float64);
 julia> initialize_fields!(grid, b::Backend{BackendParallelStencil}, fields::NTuple)
@@ -103,9 +104,8 @@ julia> initialize_fields!(grid, b::Backend{BackendParallelStencil}, fields::NTup
 
 """
 function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields::NamedTuple) where FT
-    
+
     names = keys(fields)
-    fields_local = ();
     for ifield=1:length(fields)
 
         # Created named tuple for new field. We use @eval here, to avoid 
@@ -117,7 +117,9 @@ function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields
         eval(Meta.parse(str))                       # evaluate string
         
         # Add to Tuple        
-        fields_local = (fields_local..., new_field)
+        grid.fields = add_field(grid.fields,name,new_field)
+        
+        #fields_local = (fields_local..., new_field)
     end
-    grid.fields = NamedTuple{names}(fields_local)
+    #grid.fields = NamedTuple{names}(fields_local)
 end

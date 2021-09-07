@@ -233,7 +233,7 @@ function RegularRectilinearCollocatedGrid(;
           L, Δ,                                         # domain size and (regular) spacing 
           Center, Face, Center, Face, ind_local,        # data related to the 1D local/global coordinate grids
           backend, petsc_data(), nothing,               # data related to backend
-          ())                                           # fields              
+          NamedTuple())                                 # fields              
 
     # Initialize grid      
     initialize_grid!(grid, 
@@ -345,7 +345,7 @@ end
 Initializes a `DMDA` object using the `PETSc` backend.
 """
 function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendPETSc,FT}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=(), fields::NamedTuple=()) where {FT, D}
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=(), fields::NamedTuple=NamedTuple()) where {FT, D}
 
     # initialize backend
     petsclib = check_backend(grid.backend, Scalar=backend.Scalar);
@@ -403,7 +403,7 @@ end
 Initializes a grid when we use `ParallelStencil` (and potentially `ImplicitGlobalGrid`) as a Backend
 """
 function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{BackendParallelStencil,FT}};
-        dof=1, stencilwidth=1, stenciltype=:Star, opts=nothing, fields::NamedTuple=()) where {FT, D}
+        dof=1, stencilwidth=1, stenciltype=:Star, opts=nothing, fields::NamedTuple=NamedTuple()) where {FT, D}
 
     # initialize backend
     check_backend(grid.backend);

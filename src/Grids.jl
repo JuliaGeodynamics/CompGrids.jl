@@ -14,7 +14,7 @@ export
     AbstractTopology, Periodic, Bounded, Ghosted, topology,
     AbstractGrid,
     AbstractRectilinearGrid, RegularRectilinearCollocatedGrid,
-    initialize_grid!
+    initialize_grid!, add_field
 
 import Base: size, length, eltype, show, convert
 
@@ -119,6 +119,19 @@ Abstract supertype for rectilinear grids with collocated points, with elements o
 """
 abstract type AbstractRectilinearCollocatedGrid{FT, DIM,  B} <: AbstractGrid{FT, DIM, B} end
 
+
+
+"""
+    fields = add_field(fields::NamedTuple, name::Symbol, newfield)
+
+Adds a new field to the `fields` NamedTuple
+"""
+function add_field(fields::NamedTuple, name::Symbol, newfield)
+    
+    fields = merge(fields, NamedTuple{(name,)}( (newfield,)) );
+    
+    return fields
+end
 
 Base.eltype(::AbstractGrid{FT}) where FT = FT
 Base.size(grid::AbstractGrid) = (grid.Nx, grid.Ny, grid.Nz)
