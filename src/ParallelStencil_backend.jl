@@ -80,6 +80,16 @@ function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwi
     end
     grid.ind_local = ind_local
 
+    # Update corners accordingly, which provides an easy way to iterate over the local portions of the grid, with/without ghost/halo points
+    size = ind_e .- ind_s[1:D];
+    grid.corners = ( lower=(CartesianIndex( (ones(Int64,D) .+ stencilwidth)...,)), 
+                    upper=(CartesianIndex( (zeros(Int64,D) .+ stencilwidth + size)...,)), 
+                    size=(size...,))
+    grid.ghostcorners = ( lower=(CartesianIndex( (ones(Int64,D))...,)), 
+                        upper=(CartesianIndex( (zeros(Int64,D) .+ (2 .* stencilwidth) + size)...,)), 
+                        size =(Nl_halo[1:D]...,))
+
+
     # Update the 1D coordinate vectors 
     local_coordinates!(grid, grid.backend)
 

@@ -16,4 +16,14 @@ using Test, CompGrids, MPI, PETSc
         end
     end
     
+
+    # Create fields on the grid as well. 
+    grid = RegularRectilinearCollocatedGrid(size=10, extent=100.0, fields=(T=0,P=11.22))
+    
+    @show grid
+
+
+   # @test grid.fields[:P][1] == 11.22
+
+
 end

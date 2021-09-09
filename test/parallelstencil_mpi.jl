@@ -49,3 +49,20 @@ if mpirank==1
     @test grid.Ng == (18, 10)
     @test grid.Nl == (6, 10)
 end
+
+
+# 2D - with fields
+@init_parallel_stencil(Threads, Float64, 2);
+grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12), fields=(T=0, P=1))
+
+# Loop over all local points (including ghost)
+for i in (grid.ghostcorners.lower:grid.ghostcorners.upper) 
+    grid.fields.P[i] = 2.0    
+    grid.fields.T[i] = grid.Face[2][i[2]]       # set it to the y-coordinate
+end
+# Loop over non-ghost local points
+for i in (grid.corners.lower:grid.corners.upper)
+    grid.fields.P[i] = 3.0    
+end
+@test grid.fields.P[2,2] == 3.0
+@test grid.fields.P[1,1] == 2.0

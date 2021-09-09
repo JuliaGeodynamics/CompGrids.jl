@@ -31,8 +31,12 @@ using Test, CompGrids, ParallelStencil, MPI
     @test grid.L[1] == 100.0
 
     # Create fields on the grid as well
-    @init_parallel_stencil(Threads, Float64, 1);
-    grid = RegularRectilinearCollocatedGrid(size=10, extent=100.0, fields=(T=0,P=11.22))
+    @init_parallel_stencil(Threads, Float64, 2);
+    grid = RegularRectilinearCollocatedGrid(size=(10,12), extent=(100.0,50), fields=(T=0,P=11.22))
     @test grid.fields[:P][1] == 11.22
+
+    for i in grid.corners.lower:grid.corners.upper
+        grid.fields.T[i] = i[1]
+    end
     
 end

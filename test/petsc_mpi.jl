@@ -25,7 +25,6 @@ if mpirank==1
     @test grid.Face[1][1] ≈ -1.0
 end
 
-
 # 2D 
 grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12))
 if mpirank==3
@@ -41,6 +40,18 @@ if mpirank==3
     @test grid.Ng == (16, 8, 8)
     @test grid.Nl == (8, 8, 4)
 end
+
+# Add fields as well
+grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12))
+if mpirank==0
+    @show grid grid.corners, grid.ghostcorners
+#    for i in (grid.corners.lower[1]):(grid.corners.upper[end])
+#        grid.fields.T[i] = 33
+#    end
+ #   @show grid.fields.T
+end
+
+
 
 #=
 # 2D - non-default different processor layout
