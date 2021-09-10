@@ -40,7 +40,7 @@ function initialize_backend!(grid, b::Backend{BackendParallelStencil}, stencilwi
     N_vec = ones(Int,3);
     D = grid.dim
 
-    Nl,dims = localgridsize(backend.mpi, grid.N, opts)      # local size using MPI (w/out halo)
+    Nl,dims = localfromglobalsize(backend.mpi, grid.N, opts)      # local size using MPI (w/out halo)
     N_vec[1:D] = collect(Nl)
     
     initmpi=false
@@ -129,4 +129,53 @@ function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields
         # Add to Tuple        
         grid.fields = add_field(grid.fields,name,new_field)
     end
+end
+
+
+
+
+"""    
+    globalfromlocalsize(mpi, localsize::NTuple, opts::NTuple, stencilwidth::Int, b::Backend{BackendParallelStencil, FT})
+
+Compute global from local size in case we use the ParallelStencil backend
+"""
+function globalfromlocalsize(size, localsize, opts, stencilwidth, topology, b::Backend{BackendParallelStencil, FT}) where FT
+
+    if !b.mpi 
+        size = localsize   # not using MPI/IGG
+    elseif b.mpi & !isempty(localsize)
+        dim = length(localsize);
+        dims = zeros(Int64,3)
+
+        dims[dim+1:end] .= 1;       # fix 
+        if typeof(opts) <: Dict # process command-line options
+            dims[1] = get(opts, :dimx, dims[1]);
+            if dim>1;   dims[2] = get(opts, :dimy, dims[2]);    end
+            if dim>2;   dims[3] = get(opts, :dimz, dims[3]);    end
+        end
+        size_vec = ones(Int,3);
+        size_vec[1:dim] .= localsize; 
+        
+        # Periodic boundary 
+        period  = zeros(Int64,3)
+        period[findall(topology.==Periodic)] .= 1
+
+        # Use MPI to compute processor partitioning (dims contain the # of processors in each direction)
+        overlap = stencilwidth*2
+
+        # Initialize the global grid
+        init_global_grid(size_vec[1],size_vec[2],size_vec[3], 
+                        dimx=dims[1], dimy=dims[2], dimz=dims[3], 
+                        overlapx=overlap, overlapy=overlap, overlapz=overlap, 
+                        periodx=period[1],  periody=period[2], periodz=period[3],
+                        init_MPI=false, quiet=true)
+
+        size_global = [nx_g(), ny_g(), nz_g()] .- overlap
+       
+        size = (size_global[1:dim]...,)
+    else
+        size = size
+    end
+
+    return size
 end

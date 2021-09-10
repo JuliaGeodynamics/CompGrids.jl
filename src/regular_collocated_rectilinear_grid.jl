@@ -70,7 +70,7 @@ end
 """
         RegularRectilinearCollocatedGrid(;
                             size=nothing,
-                            size_local=nothing,
+                            local_size=nothing,
                             x = nothing, y = nothing, z = nothing,
                             topology= (Bounded, Bounded, Bounded),    
                              extent = nothing,
@@ -86,7 +86,9 @@ All variables are collocated, that is, placed at the same points
 Keyword arguments
 =================
 
-- `size` (required): A tuple prescribing the number of grid points all directions.
+- `size` : A tuple prescribing the number of grid points all directions.
+                     `size` is a 3-tuple for 3D models, a 2-tuple for 2D models, and a 1-tuple for 1D.
+- `local_size` : A tuple prescribing the number of grid points all directions.
                      `size` is a 3-tuple for 3D models, a 2-tuple for 2D models, and a 1-tuple for 1D.
 
 - `extent`: A tuple prescribing the physical extent of the grid.
@@ -103,7 +105,7 @@ Keyword arguments
 
 *Note*: 
 - _Either_ `extent`, or all of `x`, `y`, and `z` must be specified.
-- _Either_ `size`, or `size_local` (the dimensions per processor; preferred by IGG) must be specified.
+- _Either_ `size`, or `local_size` (the dimensions per processor; preferred by IGG) must be specified.
 
 
 Optional PETSc arguments
@@ -163,7 +165,8 @@ RegularRectilinearCollocatedGrid{Float64, 3, Backend{BackendParallelStencil}}
 
 """
 function RegularRectilinearCollocatedGrid(;
-                                    size,
+                                    size=(),
+                                    local_size=(),
                                      x = nothing, y = nothing, z = nothing,
                                topology= (Bounded, Bounded, Bounded),    
                                 extent = nothing,
@@ -174,11 +177,26 @@ function RegularRectilinearCollocatedGrid(;
                               )
     FT = backend.Scalar;        # Scalar type
     
-    # Create Tuples if needed
-    if typeof(size)==Int64 size = (size,) end
-    if typeof(extent)==FT  extent = (extent,) end
+    # Checks
+    if !isempty(local_size) & !isempty(size)
+        error("You need to specify either size or local_size, but you cannot specify both at the same time!")
+    end
+    if isempty(local_size) & isempty(size)
+        error("You need to specify either size or local_size")
+    end
     
-    dim =   length(size)                        # dimensions of the grid [1-3]
+    # Create Tuples if needed
+    if typeof(size)==Int64 
+        size = (size,) 
+    end
+    if typeof(extent)==FT  
+        extent = (extent,) 
+    end
+    
+    size = globalfromlocalsize(size, local_size, opts, stencilwidth, topology, backend)   # Compute global size from local size
+
+
+    dim =   length(size)                                  # dimensions of the grid [1-3]
     L, X₁ = validate_regular_grid_domain(FT, extent, x, y, z)
 
     # Unpacking

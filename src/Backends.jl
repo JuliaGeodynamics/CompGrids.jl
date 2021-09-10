@@ -173,12 +173,12 @@ end
 
 
 """
-    localgridsize(mpi,N, opts)
+    localfromglobalsize(mpi,N, opts)
 
 Computes the local grid size given a global grid and an MPI communicator (not taking halo into account).
 
 """
-function localgridsize(mpi,N, opts)
+function localfromglobalsize(mpi,N, opts)
     dim = length(N);
     dims = zeros(Int64,dim)
     
@@ -207,3 +207,4 @@ function localgridsize(mpi,N, opts)
 
     return N_l, dims
 end
+

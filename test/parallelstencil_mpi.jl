@@ -66,3 +66,11 @@ for i in (grid.corners.lower:grid.corners.upper)
 end
 @test grid.fields.P[2,2] == 3.0
 @test grid.fields.P[1,1] == 2.0
+
+# 2D - with fields and specifying local grid size
+grid = RegularRectilinearCollocatedGrid(local_size=(16,8), extent=(10,12), fields=(T=0, P=1))
+if mpirank==1
+    @test grid.N  == (28, 12)
+    @test grid.Ng == (30, 14)
+    @test grid.Nl == (16, 8)
+end

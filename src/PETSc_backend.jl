@@ -47,3 +47,16 @@ function bcs_translate(bound)
 end
 
 
+
+function globalfromlocalsize(size, localsize, opts, stencilwidth, b::Backend{BackendPETSc, FT}) where FT
+
+    if !b.mpi & !isempty(localsize)
+        size = localsize   # not using MPI
+    elseif b.mpi & !isempty(localsize)
+        error("The PETSc backend currently doesn't allow specifying the local grid size")
+    else
+        size=size
+    end
+
+    return size
+end
