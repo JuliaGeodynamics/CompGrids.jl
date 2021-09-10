@@ -42,13 +42,13 @@ if mpirank==3
 end
 
 # Add fields as well
-grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12))
+grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12), fields=(T=0,P=1))
 if mpirank==0
     @show grid grid.corners, grid.ghostcorners
-#    for i in (grid.corners.lower[1]):(grid.corners.upper[end])
-#        grid.fields.T[i] = 33
-#    end
- #   @show grid.fields.T
+   # for i in (grid.corners.lower[1]):(grid.corners.upper[end])
+   ##     grid.fields.T[i] = 33
+   # end
+   # @show grid.fields.T
 end
 
 

@@ -141,7 +141,7 @@ Compute global from local size in case we use the ParallelStencil backend
 """
 function globalfromlocalsize(size, localsize, opts, stencilwidth, topology, b::Backend{BackendParallelStencil, FT}) where FT
 
-    if !b.mpi 
+    if !b.mpi & !isempty(localsize)
         size = localsize   # not using MPI/IGG
     elseif b.mpi & !isempty(localsize)
         dim = length(localsize);

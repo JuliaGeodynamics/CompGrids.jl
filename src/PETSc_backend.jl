@@ -48,7 +48,7 @@ end
 
 
 
-function globalfromlocalsize(size, localsize, opts, stencilwidth, b::Backend{BackendPETSc, FT}) where FT
+function globalfromlocalsize(size, localsize, opts, stencilwidth, topology, b::Backend{BackendPETSc, FT}) where FT
 
     if !b.mpi & !isempty(localsize)
         size = localsize   # not using MPI

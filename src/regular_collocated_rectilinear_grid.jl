@@ -192,10 +192,8 @@ function RegularRectilinearCollocatedGrid(;
     if typeof(extent)==FT  
         extent = (extent,) 
     end
-    
+
     size = globalfromlocalsize(size, local_size, opts, stencilwidth, topology, backend)   # Compute global size from local size
-
-
     dim =   length(size)                                  # dimensions of the grid [1-3]
     L, X₁ = validate_regular_grid_domain(FT, extent, x, y, z)
 
@@ -416,11 +414,13 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
     val   = values(fields)
     for ifield=1:length(fields)
         # Create global vector
-        grid.fields = add_field(grid.fields, names[ifield], PETSc.DMGlobalVec(da) )
+        v = PETSc.DMGlobalVec(da)
+        v .= val[ifield]
+        PETSc.assemble!(v)
+        grid.fields = add_field(grid.fields, names[ifield], v )
 
         # Set constant value to global vector
-        fill!(grid.fields[ifield], val[ifield])
-
+        #fill!(grid.fields[ifield], val[ifield])
     end
 
     # Corners of grid

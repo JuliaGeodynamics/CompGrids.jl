@@ -11,7 +11,7 @@ using Test, CompGrids, ParallelStencil, MPI
             else
                 @init_backend(ParallelStencil, Threads, false);
             end
-            grid = RegularRectilinearCollocatedGrid(size=size_t[1:idim], extent=length[1:idim])
+            grid = RegularRectilinearCollocatedGrid(size=(size_t[1:idim]...,), extent=length[1:idim])
             @test grid.L[1] == 1.0
             if idim>1
                 @test grid.L[2] == 2.0
