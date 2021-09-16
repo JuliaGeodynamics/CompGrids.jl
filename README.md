@@ -34,8 +34,11 @@ RegularRectilinearCollocatedGrid{Float64, 2, Backend{BackendPETSc, Float64}}
          fields: (:T, :P) 
 ```
 
-The resulting `grid` is a structure that holds information about the grid (the global grid in case it is run on one core, and the local portion in case it is run in MPI-parallel). It also initializes the fields, if that is indicated (as a global vector for the `PETSc` and as 1D/2D/3D arrays for `PS`).
-
+The resulting `grid` is a structure that holds information about the grid (the global grid in case it is run on one core, and the local portion in case it is run in MPI-parallel). If indicated, it also initializes the fields (as a global vector for the `PETSc` and as 1D/2D/3D arrays for `PS`), which you can access with `grid.fields.T` or `grid.fields[:T]` (for the examples above).
 
 ### Development
-This is work in progress. If you want to get a feel for it, have a look at the tests and example directories. The functionality is fairly complete for collocated grids (using `PS` and `PETSc`), but staggered grid support has not yet been added. 
+This is work in progress. If you want to get a feel for it, have a look at the [test](https://github.com/JuliaGeodynamics/CompGrids.jl/tree/main/test) and [examples](https://github.com/JuliaGeodynamics/CompGrids.jl/tree/main/examples) directories. 
+- The functionality is fairly complete for collocated grids (using `PS` and `PETSc`).
+- Staggered grid support will be added 
+- Support for other types of structurally regular grids (e.g., cylindrical, yin-yang?) should be fairly straightforward to add as well, but as we don't use these grids on a daily basis, we would require volunteers to help with this 
+- Adding interfaces to other types of meshes (finite elements, AMR) could be added as well, but would require external volunteers 
