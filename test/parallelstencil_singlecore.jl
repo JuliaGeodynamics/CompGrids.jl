@@ -1,4 +1,4 @@
-using Test, CompGrids, ParallelStencil, MPI
+using Test, CompGrids, ParallelStencil, MPI, ImplicitGlobalGrid
 
 @testset "ParallelStencil grids" begin
     size_t = (32,32,32)
@@ -6,10 +6,29 @@ using Test, CompGrids, ParallelStencil, MPI
 
     for idim=1:3
         for mpi in (false, true)
+           
             if mpi
-                @init_backend(ParallelStencil, Threads, true);
+                if idim==1
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, true,  1);
+                elseif idim==2
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, true,  2);
+                elseif idim==3
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, true,  3);
+                end
             else
-                @init_backend(ParallelStencil, Threads, false);
+                if idim==1
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, false, 1);
+                elseif idim==2
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, false, 2);
+                elseif idim==3
+                    ParallelStencil.@reset_parallel_stencil()
+                    @init_backend(ParallelStencil, Threads, false, 3);
+                end
             end
             grid = RegularRectilinearCollocatedGrid(size=(size_t[1:idim]...,), extent=length[1:idim])
             @test grid.L[1] == 1.0
@@ -31,7 +50,8 @@ using Test, CompGrids, ParallelStencil, MPI
     @test grid.L[1] == 100.0
 
     # Create fields on the grid as well
-    @init_parallel_stencil(Threads, Float64, 2);
+    ParallelStencil.@reset_parallel_stencil()
+    @init_backend(ParallelStencil, Threads, true, 2);
     grid = RegularRectilinearCollocatedGrid(size=(10,12), extent=(100.0,50), fields=(T=0,P=11.22))
     @test grid.fields[:P][1] == 11.22
 

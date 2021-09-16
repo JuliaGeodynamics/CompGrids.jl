@@ -1,7 +1,7 @@
 using Test, CompGrids, ParallelStencil, MPI, ImplicitGlobalGrid
 # Parallel tests
 
-@init_backend(ParallelStencil, Threads, true); # Backend with MPI and ImplicitGlobalGrid
+@init_backend(ParallelStencil, Threads, true, 1); # Backend with MPI and ImplicitGlobalGrid
 
 # 1D 
 grid = RegularRectilinearCollocatedGrid(size=(16,), x=(-5,10))
@@ -52,7 +52,8 @@ end
 
 
 # 2D - with fields
-@init_parallel_stencil(Threads, Float64, 2);
+ParallelStencil.@reset_parallel_stencil()
+@init_backend(ParallelStencil, Threads, true, 2); # Backend with MPI and ImplicitGlobalGrid
 grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12), fields=(T=0, P=1))
 
 # Loop over all local points (including ghost)

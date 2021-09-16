@@ -1,19 +1,14 @@
 using CompGrids
-const PS_MPI = true
+const PS_MPI = false
 using ParallelStencil
 using ParallelStencil.FiniteDifferences3D
 using MPI
     
-@static if PS_MPI    # using MPI-parallel setup
+if PS_MPI    # using MPI-parallel setup
     using ImplicitGlobalGrid
-
-    @init_backend(ParallelStencil, Threads, true, Float64);
-    @init_parallel_stencil(Threads, Float64, 3);
-
+    @init_backend(ParallelStencil, Threads, true, 3, Float64);    
 else                # no MPI
-    
-    @init_parallel_stencil(Threads, Float64, 3);
-    @init_backend(ParallelStencil, Threads, false, Float64);
+    @init_backend(ParallelStencil, Threads, false, 3, Float64);
 end
 
 

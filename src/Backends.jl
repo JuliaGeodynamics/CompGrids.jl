@@ -120,7 +120,7 @@ Specify the backend we are using as well as whether the simulation is done on an
 - `Scalar`: Type of Scalar
 
 """
-macro init_backend(type, arch, mpi::Bool=false, FT=Float64)
+macro init_backend(type, arch, mpi::Bool=false, ndims::Int=3, FT=Float64)
     global backend, comm, mpirank, mpisize
 
     mpirank = 0
@@ -166,8 +166,16 @@ macro init_backend(type, arch, mpi::Bool=false, FT=Float64)
         arch_sym = :CPU
     end
 
+    # Initialize the global backend 
     backend = Backend{backend_type, eval(FT)}(type_sym, arch_sym, mpi, eval(FT))
 
+    if type == :PETSc
+        return nothing     
+    elseif type == :ParallelStencil
+        return esc(:(ParallelStencil.@init_parallel_stencil($arch, $FT, $ndims);))
+    else
+        return nothing
+    end
 end
 
 

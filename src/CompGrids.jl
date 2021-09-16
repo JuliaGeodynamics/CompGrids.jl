@@ -3,6 +3,7 @@ module CompGrids
 using ParallelStencil
 using ImplicitGlobalGrid
 using MPI
+using OffsetArrays
 
 export backend,
        BackendPETSc,  BackendParallelStencil, BackendNone,

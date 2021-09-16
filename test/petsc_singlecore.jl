@@ -16,14 +16,19 @@ using Test, CompGrids, MPI, PETSc
         end
     end
     
-
-    # Create fields on the grid as well. 
-    grid = RegularRectilinearCollocatedGrid(size=10, extent=100.0, fields=(T=0,P=11.22))
+    # Create grid with fields
+    grid = RegularRectilinearCollocatedGrid(size=(10,20), extent=(100.0,110), fields=(T=0,P=11.22))
     
-    @show grid
+    # Set values using corners
+    ind = LinearIndices(grid.Nl)
+    for i in grid.corners.lower:grid.corners.upper
+        grid.fields.T[ind[i]] = grid.Face[1][i[1]] + grid.Face[2][i[2]]
+    end
 
-
-   # @test grid.fields[:P][1] == 11.22
+    # Check
+  #  T = PETSc.unsafe_localarray(grid.fields.T);
+ #   T = PETSc.reshapelocalarray(T, grid.PETSc.da)[1,:,:,:];
+#    @test T[2,3]==grid.fields.T[idx[2,3]]
 
 
 end

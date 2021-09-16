@@ -1,4 +1,4 @@
-using Test, CompGrids, MPI, PETSc
+using Test, CompGrids, MPI, PETSc, OffsetArrays
 # Parallel tests
 
 @init_backend(PETSc, Threads, true); # Backend with MPI and ImplicitGlobalGrid
@@ -43,13 +43,23 @@ end
 
 # Add fields as well
 grid = RegularRectilinearCollocatedGrid(size=(16,8), extent=(10,12), fields=(T=0,P=1))
-if mpirank==0
-    @show grid grid.corners, grid.ghostcorners
+if mpirank==2
+    ind = LinearIndices(grid.Nl)
+    #id = OffsetArray(ind, axis1, axis2)
+    #@show grid grid.corners grid.ghostcorners ind
+    # Set values using corners
+   
+    #for i in grid.corners.lower:grid.corners.upper
+    #    grid.fields.T[ind[i]] = grid.Face[1][i[1]] + grid.Face[2][i[2]]
+    #end
+
    # for i in (grid.corners.lower[1]):(grid.corners.upper[end])
-   ##     grid.fields.T[i] = 33
-   # end
-   # @show grid.fields.T
+  #  @show grid.fields.T
 end
+grid = RegularRectilinearCollocatedGrid(
+                    size=(10,20), 
+                    extent=(100.0,110), 
+                    fields=(T=0,P=11.22))
 
 
 
