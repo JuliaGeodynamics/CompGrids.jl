@@ -5,6 +5,8 @@ using ImplicitGlobalGrid
 using MPI
 using OffsetArrays
 
+@init_parallel_stencil(Threads, Float64, 3);
+
 export backend,
        BackendPETSc,  BackendParallelStencil, BackendNone,
        

@@ -123,8 +123,13 @@ function initialize_fields!(grid, b::Backend{BackendParallelStencil, FT}, fields
         value = fields[ifield]
         
         # Create a string with the expression to be evaluated (as calling @ones directly induces a compilation error)
-        str = "new_field = @ones$(grid.Nl)*$value"      
-        eval(Meta.parse(str))                       # evaluate string
+        if b.arch == :Threads
+            new_field = ParallelStencil.ParallelKernel.@ones_threads(grid.Nl)*value
+        elseif b.arch == :CUDA
+            new_field = ParallelStencil.ParallelKernel.@ones_cuda(grid.Nl)*value
+        else
+            error("Not yet implemented")
+        end
         
         # Add to Tuple        
         grid.fields = add_field(grid.fields,name,new_field)
