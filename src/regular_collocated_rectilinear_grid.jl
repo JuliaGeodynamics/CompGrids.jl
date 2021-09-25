@@ -47,7 +47,10 @@ mutable struct RegularRectilinearCollocatedGrid{FT, D, B} <: AbstractRectilinear
     # Indices of local portion of grid in x/y/z direction (w/out halo)
     ind_local :: NTuple{D,UnitRange{Int}}
 
-    # Corners
+    # Function which computes local indices from CartesianIndex
+    idx 
+
+    # Corners not including ghost points
     corners :: NamedTuple
     
     # Corners with ghost points
@@ -232,7 +235,8 @@ function RegularRectilinearCollocatedGrid(;
           topology[1:dim],                              # boundary conditions
           stencilwidth,                                 # size of halo (in parallel)
           L, Δ,                                         # domain size and (regular) spacing 
-          Center, Face, Center, Face, ind_local,        # data related to the 1D local/global coordinate grids
+          Center, Face, Center, Face,                   # data related to the 1D local/global coordinate grids
+          ind_local, nothing,                           # indices of local grid
           corners, ghostcorners,                        # corners of local grid
           backend, petsc_data(), nothing,               # data related to backend
           NamedTuple())                                 # fields              
@@ -423,6 +427,10 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
         #fill!(grid.fields[ifield], val[ifield])
     end
 
+    # Define function which computes the local index from a CartesianIndex
+    idx_petsc(id::CartesianIndex) = LinearIndices(grid.Nl)[id-grid.corners.lower+oneunit(grid.corners.lower)] + PETSc.ownershiprange(grid.fields[1], false)[1]
+    grid.idx = idx_petsc
+
     # Corners of grid
     grid.corners = PETSc.getcorners(da)
     grid.ghostcorners = PETSc.getghostcorners(da)
@@ -453,6 +461,17 @@ function initialize_grid!(grid::RegularRectilinearCollocatedGrid{FT, D, Backend{
     # Initialize fields
     initialize_fields!(grid, grid.backend, fields)
 
+    # Define function which computes the local index from a CartesianIndex
+    if backend.mpi
+        width = 1+grid.stencilwidth
+    else
+        width = 1
+    end
+    idx_ps(id::CartesianIndex) = LinearIndices(grid.Nl)[id - grid.corners.lower + oneunit(grid.corners.lower)*width]
+    grid.idx = idx_ps
+    
+
+    return nothing
 end
 
 """

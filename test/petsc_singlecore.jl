@@ -18,17 +18,19 @@ using Test, CompGrids, MPI, PETSc
     
     # Create grid with fields
     grid = RegularRectilinearCollocatedGrid(size=(10,20), extent=(100.0,110), fields=(T=0,P=11.22))
-    
-    # Set values using corners
-    ind = LinearIndices(grid.Nl)
+        
+    # function to transfer local cartesian indice to global indices
     for i in grid.corners.lower:grid.corners.upper
-        grid.fields.T[ind[i]] = grid.Face[1][i[1]] + grid.Face[2][i[2]]
+        # set T based on coordinates
+        grid.fields.T[grid.idx(i)] = grid.Face[1][i[1]] + grid.Face[2][i[2]]
     end
-
+    
     # Check
-  #  T = PETSc.unsafe_localarray(grid.fields.T);
- #   T = PETSc.reshapelocalarray(T, grid.PETSc.da)[1,:,:,:];
-#    @test T[2,3]==grid.fields.T[idx[2,3]]
-
+    T = PETSc.unsafe_localarray(grid.fields.T);
+    T = PETSc.reshapelocalarray(T, grid.PETSc.da)[1,:,:,:];
+    Text = grid.fields.T[grid.idx(CartesianIndex(2,3,1))]
+    @test T[2,3] == grid.fields.T[grid.idx(CartesianIndex(2,3,1))]
+    @test T[2,3] == grid.Face[1][2] + grid.Face[2][3]
+    
 
 end

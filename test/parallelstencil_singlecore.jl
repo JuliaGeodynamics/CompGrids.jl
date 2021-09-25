@@ -55,8 +55,14 @@ using Test, CompGrids, ParallelStencil, MPI, ImplicitGlobalGrid
     grid = RegularRectilinearCollocatedGrid(size=(10,12), extent=(100.0,50), fields=(T=0,P=11.22))
     @test grid.fields[:P][1] == 11.22
 
+    # Different methods to set values (using idx is identical to the PETSc implementation)
+    grid.fields.P .= 0.0
     for i in grid.corners.lower:grid.corners.upper
         grid.fields.T[i] = i[1]
+        grid.fields.P[grid.idx(i)] = i[1]
     end
+    
+    # test on one core
+    @test sum(abs.(grid.fields.P - grid.fields.T)) == 0.0
     
 end
